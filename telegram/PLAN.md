@@ -23,8 +23,22 @@ by the chat's type — the bot doesn't have to be "a DM bot" or "a group bot," i
   ship first; good for proving the loop end to end.
 - **Translated group (`chatType: "group"`/`"supergroup"`).** One message, several readers who may
   each speak a different language, so translation is **per reader**. The bot knows each sender from
-  the message (`sender` field); seed each person's language into the people network the first time
-  they speak. Naturally viral — one person adds the bot, the whole group is a user.
+  the message (`sender` field). Naturally viral — one person adds the bot, the whole group is a user.
+
+### Automatic language seeding (required — no manual setup)
+
+When a person the engine has never seen speaks for the first time, the engine **automatically**:
+1. detects the language of their message (the translate edge already reads the text — it returns a
+   detected-language code alongside the translation, no extra call),
+2. creates `people/<slug>.md` for them, seeded with a grounding stub that records their detected
+   language, their Telegram identity (`sender` + `chatId`), and the date of first contact,
+3. uses that language for everything it renders to or from them thereafter.
+
+This is not optional and not a manual step — it's core to the "invisible bridge" promise: you add
+the bot to a group or start a DM and it just works, learning each person as they arrive. It reuses
+the existing auto-learn machinery (`AppConfig.AppendPersonNote` / grounding refresh); the only new
+piece is "unknown sender → create file + record detected language" on the first message. The person
+is still curated over time (Copper refines the grounding), but the first touch is automatic.
 
 Every emitted message now carries `chatId`, `chatType`, and `sender` so the engine can route both.
 The MVP skeleton still *binds a single chat* (first chat to message it) to keep the first wiring
