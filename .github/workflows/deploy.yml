@@ -1,0 +1,45 @@
+name: Deploy (Cloud Run)
+
+# SCAFFOLD — inert until the cloud refactor (see telegram/DEPLOY.md) is done and the
+# required secrets exist. Manual-trigger only for now so it never fails on a push.
+# When ready, add:
+#   push:
+#     branches: [master]
+on:
+  workflow_dispatch:
+
+env:
+  SERVICE: copper-bot
+  REGION: us-central1
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Guard so it no-ops until the deploy secret is configured.
+    if: ${{ vars.DEPLOY_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
+
+      # TODO(refactor): build the single C# service image (Dockerfile at repo root or copper/).
+      - name: Build & push image
+        run: |
+          gcloud builds submit --tag "$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/copper/$SERVICE:${{ github.sha }}"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/copper/$SERVICE:${{ github.sha }}" \
+            --region "$REGION" \
+            --allow-unauthenticated \
+            --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest"
+      # The service calls Telegram setWebhook to its own Cloud Run URL on boot.
