@@ -13,10 +13,16 @@ public sealed record Rendered(string DetectedLang, string TargetLang, string Tex
 /// </summary>
 public sealed class Brain(Config cfg, HttpClient http)
 {
-    private readonly string _endpoint =
-        $"https://{cfg.Region}-aiplatform.googleapis.com/v1/projects/{cfg.GcpProject}" +
-        $"/locations/{cfg.Region}/publishers/anthropic/models/{cfg.Model}:rawPredict";
+    // "global" uses the unprefixed host; a specific region uses "{region}-aiplatform...".
+    private readonly string _endpoint = BuildEndpoint(cfg);
     private GoogleCredential? _cred;
+
+    private static string BuildEndpoint(Config c)
+    {
+        var host = c.Region == "global" ? "aiplatform.googleapis.com" : $"{c.Region}-aiplatform.googleapis.com";
+        return $"https://{host}/v1/projects/{c.GcpProject}/locations/{c.Region}" +
+               $"/publishers/anthropic/models/{c.Model}:rawPredict";
+    }
 
     public async Task<Rendered> TranslateAsync(string message, string sender, string peopleContext)
     {
