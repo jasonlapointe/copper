@@ -196,15 +196,21 @@ version may already include the fix — try running without the patches first.
 
 ## Working on it together
 
+**`master` is protected — all changes land through a reviewed pull request.** Work on your own
+branch, test it yourself, open a PR, and the maintainer reviews and approves before it merges.
+The full workflow (branch → test → PR → review) is in [`CONTRIBUTING.md`](CONTRIBUTING.md). In short:
+
+- **Never work on `master`.** Branch first (`git checkout -b yourname/thing`); direct pushes to
+  `master` are rejected.
+- **Run and test your change before opening the PR** — it must build (`dotnet build`) and work when
+  you actually run it (`dotnet run`), against your *own* WhatsApp and contacts.
 - **Understand a change before making it.** Read the relevant `DECISIONS.md` rows first — a lot of
   what looks arbitrary was a deliberate choice with a reason.
-- **When you decide something, write it down.** Add a row to `DECISIONS.md` with the date and the
-  *why*. Future-us will thank you.
-- **Keep the two-edges shape.** New features should stay in the deterministic pipeline where
-  possible; only reach for the model when a task genuinely needs language judgment.
-- **Never commit private data.** The `.gitignore` already blocks your WhatsApp session, messages,
-  logs, people files, photos, and config. Keep it that way — if you add a new kind of private data,
-  add it to `.gitignore` in the same change.
+- **When you decide something, write it down** — a new `DECISIONS.md` row with the date and the *why*.
+- **Keep the two-edges shape.** Logic in the deterministic pipeline; the model only for the two
+  translation edges.
+- **Never commit private data.** The `.gitignore` blocks your WhatsApp session, messages, logs,
+  people files, photos, and config — keep it that way.
 
 ---
 
