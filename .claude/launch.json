@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "copper",
+      "runtimeExecutable": "dotnet",
+      "runtimeArgs": ["run", "--project", "C:\\dev\\marat\\copper", "--no-build"],
+      "port": 5077
+    }
+  ]
+}

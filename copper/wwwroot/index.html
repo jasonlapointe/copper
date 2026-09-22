@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copper</title>
+<style>
+  :root {
+    --header-bg: #008069;
+    --header-text: #ffffff;
+    --sidebar-bg: #ffffff;
+    --sidebar-hover: #f5f6f6;
+    --sidebar-active: #f0f2f5;
+    --wall: #efeae2;
+    --in-bubble: #ffffff;
+    --in-text: #111b21;
+    --out-bubble: #d9fdd3;
+    --out-text: #111b21;
+    --note-bubble: #f0f2f5;
+    --note-text: #54656f;
+    --chip: #fdf3c7;
+    --chip-text: #54655f;
+    --date-chip: #ffffff;
+    --time: #667781;
+    --tick: #53bdeb;
+    --bar-bg: #f0f2f5;
+    --input-bg: #ffffff;
+    --input-text: #111b21;
+    --send-btn: #008069;
+    --border: #e9edef;
+    --draft-border: #b87333;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --header-bg: #202c33;
+      --header-text: #e9edef;
+      --sidebar-bg: #111b21;
+      --sidebar-hover: #202c33;
+      --sidebar-active: #2a3942;
+      --wall: #0b141a;
+      --in-bubble: #202c33;
+      --in-text: #e9edef;
+      --out-bubble: #005c4b;
+      --out-text: #e9edef;
+      --note-bubble: #1c262c;
+      --note-text: #8696a0;
+      --chip: #182229;
+      --chip-text: #ffd279;
+      --date-chip: #182229;
+      --time: #8696a0;
+      --tick: #53bdeb;
+      --bar-bg: #202c33;
+      --input-bg: #2a3942;
+      --input-text: #e9edef;
+      --send-btn: #00a884;
+      --border: #222d34;
+      --draft-border: #d98e4a;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    height: 100vh; display: flex;
+    font: 14.5px/1.45 "Segoe UI", system-ui, sans-serif;
+    background: var(--wall); color: var(--in-text);
+  }
+
+  /* ── left nav ───────────────────────────── */
+  #nav {
+    width: 320px; min-width: 240px; flex: none; display: flex; flex-direction: column;
+    background: var(--sidebar-bg); border-right: 1px solid var(--border);
+  }
+  #nav .navhead {
+    padding: 14px 16px; background: var(--header-bg); color: var(--header-text);
+    font-weight: 700; letter-spacing: .12em; font-size: 13px; display: flex; align-items: center; gap: 8px;
+  }
+  #nav .navhead .sub { margin-left: auto; font-weight: 400; letter-spacing: 0; font-size: 11.5px; opacity: .8; }
+  #chatlist { flex: 1; overflow-y: auto; }
+  .chatrow {
+    display: flex; gap: 12px; align-items: center; padding: 11px 14px;
+    border-bottom: 1px solid var(--border); cursor: default;
+  }
+  .chatrow:hover { background: var(--sidebar-hover); }
+  .chatrow.active { background: var(--sidebar-active); }
+  .chatrow.dim { opacity: .5; }
+  .cavatar {
+    width: 42px; height: 42px; border-radius: 50%; flex: none;
+    display: flex; align-items: center; justify-content: center;
+    background: #8696a0; color: #fff; font-weight: 600; font-size: 14px;
+  }
+  .chatrow.active .cavatar { background: #b87333; }
+  .cname { font-size: 14.5px; }
+  .csub { font-size: 12px; color: var(--time); }
+  .navnote { padding: 10px 14px; font-size: 11.5px; color: var(--time); border-top: 1px solid var(--border); }
+
+  /* ── right pane ─────────────────────────── */
+  #pane { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 16px; background: var(--header-bg); color: var(--header-text);
+    flex: none; z-index: 2;
+  }
+  #navBtn {
+    background: none; border: none; color: var(--header-text); font-size: 20px;
+    cursor: pointer; padding: 4px 8px 4px 0; flex: none;
+  }
+  .avatar {
+    width: 40px; height: 40px; border-radius: 50%; flex: none;
+    background: #b87333; color: #fff; font-weight: 700; font-size: 15px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  header .name { font-size: 16px; font-weight: 600; }
+  header .status { font-size: 12.5px; opacity: .85; }
+
+  #chat {
+    flex: 1; overflow-y: auto; padding: 20px 6% 12px;
+    display: flex; flex-direction: column; gap: 3px;
+    background-color: var(--wall);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140' viewBox='0 0 140 140'%3E%3Cg fill='none' stroke='%23807050' stroke-opacity='.12' stroke-width='1.4'%3E%3Ccircle cx='22' cy='24' r='6'/%3E%3Cpath d='M96 18q8-10 16 0'/%3E%3Cpath d='M30 96l7 7m0-7l-7 7'/%3E%3Ccircle cx='112' cy='104' r='4'/%3E%3Cpath d='M64 58q6 8 0 16q-6-8 0-16z'/%3E%3Cpath d='M120 60h12M126 54v12'/%3E%3Cpath d='M12 128q6-6 12 0'/%3E%3Ccircle cx='70' cy='128' r='5'/%3E%3C/g%3E%3C/svg%3E");
+  }
+  .row { display: flex; flex-direction: column; margin: 2px 0; }
+  .bubble {
+    position: relative; max-width: 68%; padding: 7px 10px 8px;
+    border-radius: 8px; white-space: pre-wrap; word-wrap: break-word;
+    box-shadow: 0 1px 1px rgba(0,0,0,.08); font-size: 14.5px;
+  }
+  .bubble img { display: block; max-width: 240px; max-height: 300px; border-radius: 6px; margin: 2px 0 4px; cursor: pointer; }
+  .meta { float: right; margin: 6px -2px -4px 8px; font-size: 11px; color: var(--time); user-select: none; white-space: nowrap; }
+  .ticks { color: var(--tick); letter-spacing: -.12em; margin-left: 3px; }
+
+  .in { align-items: flex-start; }
+  .in .bubble { background: var(--in-bubble); color: var(--in-text); border-top-left-radius: 0; cursor: pointer; }
+  .in .orig {
+    margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(134,150,160,.25);
+    font-size: 12.5px; color: var(--time); font-style: italic; display: none;
+  }
+  .in .tnote { font-size: 11.5px; color: var(--time); margin-top: 3px; display: none; }
+  .in .bubble.revealed .orig { display: block; }
+  .in .bubble.revealed .tnote:not(:empty) { display: block; }
+  .dots { display: inline-flex; gap: 4px; padding: 4px 2px; }
+  .dots span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--time); opacity: .4;
+    animation: blink 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: .2s; }
+  .dots span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: .9; } }
+
+  .out { align-items: flex-end; }
+  .out .bubble { background: var(--out-bubble); color: var(--out-text); border-top-right-radius: 0; }
+  .note { align-items: flex-end; }
+  .note .bubble { background: var(--note-bubble); color: var(--note-text); font-size: 13.5px; box-shadow: none; }
+
+  .chip-row { display: flex; justify-content: center; margin: 8px 0; }
+  .chip {
+    max-width: 86%; background: var(--chip); color: var(--chip-text);
+    padding: 6px 12px; border-radius: 8px; font-size: 12.8px; text-align: center;
+    box-shadow: 0 1px 1px rgba(0,0,0,.06); white-space: pre-wrap;
+  }
+  .datechip { background: var(--date-chip); color: var(--time); font-size: 12px; padding: 5px 12px; border-radius: 8px; }
+
+  /* the little green "view what he received" pill on Jason's own sent bubbles */
+  .reveal {
+    display: inline-block; margin-top: 5px; font-size: 11px; font-weight: 600;
+    color: var(--send-btn); cursor: pointer; user-select: none; opacity: .8;
+  }
+  .reveal:hover { opacity: 1; }
+  .sent-orig {
+    margin-top: 5px; padding-top: 5px; border-top: 1px solid rgba(134,150,160,.3);
+    font-size: 13px; color: var(--out-text); display: none;
+  }
+  .sent-orig .bk { display: block; margin-top: 4px; font-size: 12px; color: var(--time); font-style: italic; }
+  .out .bubble.revealed .sent-orig { display: block; }
+  .sending { opacity: .6; }
+
+  footer { flex: none; background: var(--bar-bg); padding: 8px 12px; display: flex; gap: 9px; align-items: center; }
+  input[type=text] {
+    flex: 1; padding: 11px 16px; border-radius: 22px; border: none; outline: none;
+    background: var(--input-bg); color: var(--input-text); font-size: 14.5px;
+  }
+  #sendBtn {
+    width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
+    background: var(--send-btn); color: #fff; font-size: 19px; flex: none;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #sendBtn:disabled, input:disabled { opacity: .55; }
+  #attachBtn {
+    width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer;
+    background: transparent; color: var(--time); font-size: 18px; flex: none;
+  }
+  #attachBtn:hover { background: rgba(134,150,160,.15); }
+  .out .bubble img { display: block; max-width: 240px; max-height: 300px; border-radius: 6px; margin: 2px 0 4px; }
+
+  @media (max-width: 720px) {
+    #nav { display: none; position: absolute; left: 0; top: 0; bottom: 0; width: 280px; z-index: 10; box-shadow: 2px 0 12px rgba(0,0,0,.3); }
+    #nav.open { display: flex; }
+  }
+  @media (min-width: 721px) { #navBtn { display: none; } }
+</style>
+</head>
+<body>
+<div id="nav">
+  <div class="navhead">COPPER <span class="sub">Rosetta bridge</span></div>
+  <div id="chatlist"></div>
+  <div class="navnote">Only the highlighted chat is bridged. Other conversations are shown for orientation and are never read or written.</div>
+</div>
+
+<div id="pane">
+<header>
+  <button id="navBtn" title="Conversations">☰</button>
+  <div class="avatar" id="avatar">·</div>
+  <div>
+    <div class="name" id="contact">…</div>
+    <div class="status" id="substate">connecting bridge…</div>
+  </div>
+</header>
+
+<div id="chat"></div>
+
+<footer>
+  <button id="attachBtn" title="Send a photo">📎</button>
+  <input type="file" id="fileInput" accept="image/*" style="display:none">
+  <input type="text" id="input" placeholder="Message in English — goes out in his language" autocomplete="off" autofocus>
+  <button id="sendBtn" title="Send">➤</button>
+</footer>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+const substate = document.getElementById("substate");
+let contactName = "…", chatName = "", baseStatus = "connecting bridge…", statusTimer = null, lastDate = "";
+let msgN = 0;
+const tSlots = {};          // n → { trans, orig, note, pending, original }
+let tQueue = [];            // [{ n, body }] awaiting translation
+let tTimer = null, tBusy = false;
+
+const fmtTime = (d) => d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+const now = () => fmtTime(new Date());
+
+function row(cls) {
+  const r = document.createElement("div");
+  r.className = "row " + cls;
+  chat.appendChild(r);
+  chat.scrollTop = chat.scrollHeight;
+  return r;
+}
+
+function dateChipFor(d) {
+  const label = d.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  if (label === lastDate) return;
+  lastDate = label;
+  const r = document.createElement("div");
+  r.className = "chip-row";
+  const c = document.createElement("div");
+  c.className = "chip datechip"; c.textContent = label;
+  r.appendChild(c);
+  chat.appendChild(r);
+}
+
+function meta(time, ticks) {
+  const m = document.createElement("span");
+  m.className = "meta"; m.textContent = time || now();
+  if (ticks) {
+    const k = document.createElement("span");
+    k.className = "ticks"; k.textContent = "✓✓";
+    m.appendChild(k);
+  }
+  return m;
+}
+
+/* Outgoing / note bubble (plain). */
+function bubble(rowEl, text, opts = {}) {
+  const b = document.createElement("div");
+  b.className = "bubble";
+  const t = document.createElement("span");
+  t.textContent = text;
+  b.appendChild(t);
+  b.appendChild(meta(opts.time, opts.ticks));
+  rowEl.appendChild(b);
+  chat.scrollTop = chat.scrollHeight;
+  return b;
+}
+
+/* Incoming bubble: image + text + translation slot. */
+function addIncoming(body, media, time, id) {
+  const r = row("in");
+  const b = document.createElement("div");
+  b.className = "bubble";
+  if (media) {
+    const img = document.createElement("img");
+    img.src = "/api/media/" + media;
+    img.onclick = () => window.open(img.src, "_blank");
+    b.appendChild(img);
+  }
+  const isPlaceholder = /^\[.+\]$/.test(body.trim());
+  const hasText = body.trim() && !isPlaceholder;
+  if (hasText || media) {
+    const trans = document.createElement("div");
+    const orig = document.createElement("div"); orig.className = "orig";
+    const note = document.createElement("div"); note.className = "tnote";
+    b.append(trans, orig, note);
+    // Frictionless: text arrives in English; images arrive with a contextual caption.
+    // Dots while Copper renders; the original is behind an explicit labeled control.
+    msgN++;
+    trans.innerHTML = '<span class="dots"><span></span><span></span><span></span></span>';
+    // For real text (not photos), offer an explicit reveal of the original once translated.
+    let reveal = null;
+    if (hasText) {
+      reveal = document.createElement("span");
+      reveal.className = "reveal";
+      const label = "🌐 View original (" + contactName.split(" ")[0] + "’s language)";
+      reveal.textContent = label;
+      reveal.style.display = "none";
+      reveal.onclick = (e) => {
+        e.stopPropagation();
+        const on = b.classList.toggle("revealed");
+        reveal.textContent = on ? "🌐 Hide original" : label;
+      };
+      b.appendChild(reveal);
+    }
+    tSlots[msgN] = { trans, orig, note, reveal, original: hasText ? body : "(photo)" };
+    tQueue.push({ n: msgN, id: id || "", body: hasText ? body : "[image]", media: media || null });
+    scheduleTranslate();
+  } else if (body.trim() && !media) {
+    const t = document.createElement("div");
+    t.textContent = body;
+    b.appendChild(t);
+  }
+  b.appendChild(meta(time));
+  r.appendChild(b);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function scheduleTranslate() {
+  if (tTimer) clearTimeout(tTimer);
+  tTimer = setTimeout(runTranslate, 700);
+}
+
+async function runTranslate() {
+  if (tBusy || tQueue.length === 0) return;
+  tBusy = true;
+  const batch = tQueue.splice(0, 12);
+  try {
+    const res = await fetch("/api/translate", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: batch }),
+    });
+    const data = await res.json();
+    if (data.translations) {
+      for (const t of data.translations) {
+        const slot = tSlots[t.n];
+        if (!slot || !t.english) continue;
+        slot.trans.textContent = t.english;
+        slot.orig.textContent = slot.original;   // revealed only via the labeled control
+        if (t.note) slot.note.textContent = "ℹ " + t.note;
+        if (slot.reveal) slot.reveal.style.display = "inline-block";
+        slot.done = true;
+      }
+    }
+    // Anything the model skipped (or an error) falls back to the original text — never dots forever.
+    for (const m of batch) {
+      const slot = tSlots[m.n];
+      if (slot && !slot.done) slot.trans.textContent = slot.original;
+    }
+  } catch (e) {
+    for (const m of batch) {
+      const slot = tSlots[m.n];
+      if (slot && !slot.done) slot.trans.textContent = slot.original;
+    }
+  } finally {
+    tBusy = false;
+    if (tQueue.length) scheduleTranslate();
+  }
+}
+
+function chip(text) {
+  const r = document.createElement("div");
+  r.className = "chip-row";
+  const c = document.createElement("div");
+  c.className = "chip"; c.textContent = text;
+  r.appendChild(c);
+  chat.appendChild(r);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function setTyping(text) {
+  substate.textContent = text;
+  if (statusTimer) clearTimeout(statusTimer);
+  statusTimer = setTimeout(() => substate.textContent = baseStatus, 4000);
+}
+
+/* Jason's own sent bubble: shows his ENGLISH; the Russian Marat received is one tap away. */
+function addSent(english, russian, back, opts = {}) {
+  const r = row("out");
+  const b = document.createElement("div");
+  b.className = "bubble";
+  const t = document.createElement("div");
+  t.textContent = english;
+  b.appendChild(t);
+  if (russian) {
+    const reveal = document.createElement("span");
+    reveal.className = "reveal";
+    const label = "🌐 View in " + contactName.split(" ")[0] + "’s language";
+    reveal.textContent = label;
+    const orig = document.createElement("div");
+    orig.className = "sent-orig";
+    orig.textContent = russian;
+    if (back) { const bk = document.createElement("span"); bk.className = "bk"; bk.textContent = "↳ " + back; orig.appendChild(bk); }
+    reveal.onclick = (e) => {
+      e.stopPropagation();
+      const on = b.classList.toggle("revealed");
+      reveal.textContent = on ? "🌐 Hide translation" : label;
+    };
+    b.append(reveal, orig);
+  }
+  b.appendChild(meta(opts.time, opts.pending ? false : true));
+  if (opts.pending) b.classList.add("sending");
+  r.appendChild(b);
+  chat.scrollTop = chat.scrollHeight;
+  return b;
+}
+
+function setBusy(busy) {
+  input.disabled = busy; sendBtn.disabled = busy;
+  if (busy) setTyping("sending…"); else { substate.textContent = baseStatus; input.focus(); }
+}
+
+async function submit() {
+  const text = input.value.trim();
+  if (!text || input.disabled) return;
+  input.value = "";
+  // Optimistic: show his English immediately as a pending sent bubble.
+  const pending = addSent(text, null, null, { pending: true });
+  setBusy(true);
+  try {
+    const res = await fetch("/api/message", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    const data = await res.json();
+    if (data.error) {
+      pending.classList.remove("sending");
+      pending.querySelector(".meta")?.remove();
+      const err = document.createElement("div"); err.className = "reveal"; err.style.color = "var(--danger)";
+      err.textContent = "⚠ not sent — " + data.error; pending.appendChild(err);
+    } else if (data.sent) {
+      // Finalize: English stays, attach the reveal + ✓✓.
+      pending.closest(".row").remove();
+      addSent(data.sent.english, data.sent.russian, data.sent.back, {});
+    } else if (data.ack) {
+      // It was guidance, not a message — replace the bubble with a note chip.
+      pending.closest(".row").remove();
+      chip("📝 " + data.ack);
+    }
+  } catch (e) {
+    pending.classList.remove("sending");
+    const err = document.createElement("div"); err.className = "reveal"; err.style.color = "var(--danger)";
+    err.textContent = "⚠ " + e.message; pending.appendChild(err);
+  } finally {
+    setBusy(false);
+  }
+}
+sendBtn.onclick = submit;
+input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+
+/* ── send a photo (file picker OR paste) ── */
+const fileInput = document.getElementById("fileInput");
+document.getElementById("attachBtn").onclick = () => fileInput.click();
+fileInput.onchange = () => { const f = fileInput.files[0]; if (f) sendPhoto(f, input.value.trim()); input.value = ""; fileInput.value = ""; };
+
+// Paste an image anywhere in the window → post it straight to the chat, no translation.
+window.addEventListener("paste", (e) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const it of items) {
+    if (it.type.startsWith("image/")) {
+      const f = it.getAsFile();
+      if (f) { e.preventDefault(); sendPhoto(f, input.value.trim()); input.value = ""; }
+      return;
+    }
+  }
+});
+
+async function sendPhoto(f, caption) {
+  if (input.disabled) return;
+  // Optimistic: show the photo immediately with a sending state.
+  const r = row("out");
+  const b = document.createElement("div"); b.className = "bubble sending";
+  const img = document.createElement("img"); img.src = URL.createObjectURL(f); b.appendChild(img);
+  if (caption) { const c = document.createElement("div"); c.textContent = caption; b.appendChild(c); }
+  b.appendChild(meta(null, false));
+  r.appendChild(b); chat.scrollTop = chat.scrollHeight;
+  setBusy(true); setTyping("sending photo…");
+  try {
+    const fd = new FormData();
+    fd.append("photo", f);
+    if (caption) fd.append("caption", caption);
+    const res = await fetch("/api/photo", { method: "POST", body: fd });
+    const data = await res.json();
+    if (data.error) {
+      b.classList.remove("sending");
+      const err = document.createElement("div"); err.className = "reveal"; err.style.color = "var(--danger)";
+      err.textContent = "⚠ not sent — " + data.error; b.appendChild(err);
+    } else {
+      b.classList.remove("sending");
+      b.querySelector(".meta")?.remove();
+      if (data.caption_ru) {
+        const reveal = document.createElement("span"); reveal.className = "reveal";
+        const label = "🌐 View in " + contactName.split(" ")[0] + "’s language";
+        reveal.textContent = label;
+        const orig = document.createElement("div"); orig.className = "sent-orig"; orig.textContent = data.caption_ru;
+        if (data.back) { const bk = document.createElement("span"); bk.className = "bk"; bk.textContent = "↳ " + data.back; orig.appendChild(bk); }
+        reveal.onclick = (e) => { e.stopPropagation(); const on = b.classList.toggle("revealed"); reveal.textContent = on ? "🌐 Hide translation" : label; };
+        b.append(reveal, orig);
+      }
+      b.appendChild(meta(null, true));
+    }
+  } catch (e) {
+    b.classList.remove("sending");
+    const err = document.createElement("div"); err.className = "reveal"; err.style.color = "var(--danger)";
+    err.textContent = "⚠ " + e.message; b.appendChild(err);
+  } finally {
+    setBusy(false);
+  }
+};
+
+document.getElementById("navBtn").onclick = () => document.getElementById("nav").classList.toggle("open");
+chat.addEventListener("click", () => document.getElementById("nav").classList.remove("open"));
+
+/* ── history + chat list, once the bridge is up ── */
+let loaded = false;
+async function loadOnceConnected() {
+  if (loaded) return; loaded = true;
+  try {
+    const h = await (await fetch("/api/history?limit=30")).json();
+    if (h.messages) {
+      for (const m of h.messages) {
+        const d = new Date(m.t * 1000);
+        dateChipFor(d);
+        if (m.who === "ME") {
+          // Show Jason's English if we sent it through Copper; else the raw text.
+          if (m.english) addSent(m.english, m.body, m.back, { time: fmtTime(d) });
+          else addSent(m.body, null, null, { time: fmtTime(d) });
+        } else {
+          addIncoming(m.body, m.media, fmtTime(d), m.id);
+        }
+      }
+    }
+  } catch { /* history is best-effort */ }
+  try {
+    const c = await (await fetch("/api/chats")).json();
+    if (c.chats) renderChatList(c.chats);
+  } catch { /* list is best-effort */ }
+}
+
+function renderChatList(names) {
+  const list = document.getElementById("chatlist");
+  list.innerHTML = "";
+  const rows = [chatName, ...names.filter(n => n !== chatName)];
+  for (const name of rows) {
+    const active = name === chatName;
+    const r = document.createElement("div");
+    r.className = "chatrow" + (active ? " active" : " dim");
+    const a = document.createElement("div");
+    a.className = "cavatar";
+    a.textContent = (active ? contactName : name).split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+    const col = document.createElement("div");
+    const n = document.createElement("div");
+    n.className = "cname"; n.textContent = active ? contactName : name;
+    const s = document.createElement("div");
+    s.className = "csub"; s.textContent = active ? "bridged · live" : "not bridged";
+    col.append(n, s);
+    r.append(a, col);
+    list.appendChild(r);
+  }
+}
+
+/* ── server events ── */
+const es = new EventSource("/api/events");
+es.onmessage = (e) => {
+  const msg = JSON.parse(e.data);
+  if (msg.type === "incoming") { dateChipFor(new Date()); addIncoming(msg.body, msg.media, now(), msg.id); }
+  else if (msg.type === "status") setTyping("Copper: " + msg.text);
+  else if (msg.type === "wa") applyWaState(msg.state);
+  else if (msg.type === "brain" && msg.state !== "ok") chip("⚠ " + (msg.help || "Copper's brain is unavailable."));
+};
+
+function applyWaState(state) {
+  if (state === "connected") { baseStatus = "bridge connected · live feed on"; loadOnceConnected(); }
+  else if (state.startsWith("failed")) baseStatus = "⚠ " + state;
+  else baseStatus = "connecting bridge…";
+  substate.textContent = baseStatus;
+}
+
+(async () => {
+  const s = await (await fetch("/api/state")).json();
+  contactName = s.contact;
+  chatName = s.chat;
+  document.getElementById("contact").textContent = s.contact;
+  document.getElementById("avatar").textContent = s.contact.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  applyWaState(s.wa);
+})();
+</script>
+</body>
+</html>

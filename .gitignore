@@ -1,0 +1,39 @@
+# ─────────────────────────────────────────────────────────────
+# Copper .gitignore
+# NOTHING private about a real person or conversation may be committed.
+# ─────────────────────────────────────────────────────────────
+
+# ── WhatsApp session (CRITICAL) ──
+# This is a live login to your WhatsApp account — cookies, tokens, the works.
+# Committing it hands anyone who reads the repo control of your WhatsApp. Never.
+.wwebjs_auth/
+.wwebjs_cache/
+
+# ── Private conversation data & people network ──
+# Real message history, translation cache, usage logs, and the per-person
+# relationship files (names, phone numbers, life details, photos).
+copper/store/
+copper/logs/
+copper/people/
+media/
+outgoing/
+
+# ── Real configuration (contains a real contact's phone number) ──
+# Ship copper.example.json instead; each user creates their own copper.json.
+copper/copper.json
+
+# ── Node ──
+node_modules/
+npm-debug.log*
+
+# ── .NET build output ──
+bin/
+obj/
+*.user
+
+# ── OS / editor cruft ──
+.DS_Store
+Thumbs.db
+*.swp
+.vs/
+.idea/

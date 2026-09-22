@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy this file to copper.json and fill in your own values. copper.json is gitignored so your contact's details stay private.",
+  "bridgeDir": "..",
+  "model": "claude-opus-5",
+  "selfFile": "people/you.md",
+  "contact": {
+    "name": "Contact Full Name",
+    "chatName": "+0 000 000 0000",
+    "profileFile": "people/contact.md"
+  }
+}
