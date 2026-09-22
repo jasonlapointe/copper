@@ -22,6 +22,12 @@ outgoing/
 # Ship copper.example.json instead; each user creates their own copper.json.
 copper/copper.json
 
+# ── Secrets / tokens ──
+# Bot tokens, API keys — anything that grants control. Never commit.
+.env
+*.env
+**/.env
+
 # ── Node ──
 node_modules/
 npm-debug.log*
@@ -37,3 +43,8 @@ Thumbs.db
 *.swp
 .vs/
 .idea/
+
+# copper-bot build output
+bot/bin/
+bot/obj/
+bot/data/

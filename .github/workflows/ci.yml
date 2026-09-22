@@ -1,0 +1,31 @@
+name: CI
+
+# Build the product on every push and every PR into master, so nothing broken reaches
+# the protected branch. Deploy is separate — see deploy.yml.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      # The product. This is what deploys; it must always build.
+      - name: Build copper-bot
+        working-directory: bot
+        run: dotnet build --configuration Release
+
+      # Legacy web-UI app (kept for history) — build it too while it's still in the tree,
+      # so a change doesn't silently rot it. Drop this step if/when copper/ is archived.
+      - name: Build legacy copper web app
+        working-directory: copper
+        run: dotnet build --configuration Release

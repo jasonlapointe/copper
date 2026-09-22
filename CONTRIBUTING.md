@@ -23,14 +23,15 @@ kind of private data, add it to `.gitignore` in the same change. When in doubt, 
    ```bash
    git checkout -b ilyas/short-description      # e.g. ilyas/kazakh-keyboard
    ```
-3. **Make your change, then actually run and test it yourself:**
+3. **Make your change to the product (`bot/`), then run and test it yourself:**
    ```bash
-   cd copper && dotnet build          # must build with 0 errors
-   dotnet run                         # open http://localhost:5077 and try your change
+   cd bot && dotnet build             # must build with 0 errors
+   # run it in local long-poll mode against your OWN bot + a test group:
+   #   set TELEGRAM_BOT_TOKEN and GCP_PROJECT, then: dotnet run
    ```
-   Confirm the app starts, your change works in the browser, and you didn't break sending,
-   receiving, or the live feed. Test on your *own* linked WhatsApp and your *own* contacts —
-   never against someone else's data.
+   Confirm the bot starts and translates in a test Telegram group. Test on your *own* bot and your
+   *own* test chats — never against someone else's conversations or data. (`bot/` is the product;
+   `copper/`, `wa.js`, `telegram/` are legacy — see the README.)
 4. **Commit and push your branch:**
    ```bash
    git add -p                         # review each change as you stage it
