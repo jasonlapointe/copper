@@ -1,11 +1,10 @@
 name: Deploy (Cloud Run)
 
-# SCAFFOLD — inert until the cloud refactor (see telegram/DEPLOY.md) is done and the
-# required secrets exist. Manual-trigger only for now so it never fails on a push.
-# When ready, add:
-#   push:
-#     branches: [master]
+# Deploys copper-bot to Cloud Run on every merge to master (and on manual dispatch).
+# Gated by the DEPLOY_ENABLED repo variable so it only runs once configured.
 on:
+  push:
+    branches: [master]
   workflow_dispatch:
 
 env:
