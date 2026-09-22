@@ -8,12 +8,12 @@ public sealed record Rendered(string DetectedLang, string TargetLang, string Tex
 
 /// <summary>
 /// The one LLM edge: translate a message into the group's other language, contextually and with
-/// dignity. Calls Claude on GCP Vertex AI — authenticated by the service account (metadata server
-/// on Cloud Run, ADC locally), so there is NO API key to manage. Cheap model by default (Haiku).
+/// dignity. Uses Gemini on GCP Vertex AI — Google's own model, so a new project has quota
+/// immediately and it bills straight through GCP with no API key (service-account auth: metadata
+/// server on Cloud Run, ADC locally). Thinking is disabled for fast, complete, cheap translations.
 /// </summary>
 public sealed class Brain(Config cfg, HttpClient http)
 {
-    // "global" uses the unprefixed host; a specific region uses "{region}-aiplatform...".
     private readonly string _endpoint = BuildEndpoint(cfg);
     private GoogleCredential? _cred;
 
@@ -21,7 +21,7 @@ public sealed class Brain(Config cfg, HttpClient http)
     {
         var host = c.Region == "global" ? "aiplatform.googleapis.com" : $"{c.Region}-aiplatform.googleapis.com";
         return $"https://{host}/v1/projects/{c.GcpProject}/locations/{c.Region}" +
-               $"/publishers/anthropic/models/{c.Model}:rawPredict";
+               $"/publishers/google/models/{c.Model}:generateContent";
     }
 
     public async Task<Rendered> TranslateAsync(string message, string sender, string peopleContext)
@@ -30,7 +30,8 @@ public sealed class Brain(Config cfg, HttpClient http)
         var prompt = $$"""
             You are Copper, an interpreter that makes a cross-language group feel like everyone speaks
             the same language. Values: dignity (no one ever sounds "translated"), fidelity (carry meaning
-            whole, invent nothing), warmth to match the speaker. This group's languages: {{langs}}.
+            whole, invent nothing — never guess at names, keep them as-is), warmth to match the speaker.
+            This group's languages: {{langs}}.
 
             ## People in the conversation
             {{peopleContext}}
@@ -40,8 +41,9 @@ public sealed class Brain(Config cfg, HttpClient http)
 
             Detect the message's language (ISO code). Translate it into the OTHER group language so the
             rest can read it — natural, fluent, as that person would say it if it were their own language;
-            never word-for-word. If it's already understandable to everyone or is just an emoji/link,
-            you may echo it. Always answer ONLY this JSON, no prose, no fences:
+            never word-for-word. Names of people (see the people list) stay as names. If it's already
+            understandable to everyone or is just an emoji/link, you may echo it. Answer ONLY this JSON,
+            no prose, no code fences:
             {"detected":"<iso>","target":"<iso>","text":"<translation>"}
             """;
 
@@ -50,19 +52,22 @@ public sealed class Brain(Config cfg, HttpClient http)
         req.Headers.Add("Authorization", $"Bearer {token}");
         req.Content = JsonContent.Create(new
         {
-            anthropic_version = "vertex-2023-10-16", // Vertex Claude: version in body, model in the URL
-            max_tokens = 1024,
-            messages = new[] { new { role = "user", content = prompt } },
+            contents = new[] { new { role = "user", parts = new[] { new { text = prompt } } } },
+            generationConfig = new
+            {
+                maxOutputTokens = 1024,
+                temperature = 0.2,
+                thinkingConfig = new { thinkingBudget = 0 }, // translation needs no reasoning tokens
+            },
         });
 
         using var resp = await http.SendAsync(req);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         if (!resp.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Vertex {(int)resp.StatusCode}: {body}");
+            throw new InvalidOperationException($"Vertex/Gemini {(int)resp.StatusCode}: {body}");
 
-        var text = "";
-        foreach (var block in body.GetProperty("content").EnumerateArray())
-            if (block.GetProperty("type").GetString() == "text") { text = block.GetProperty("text").GetString() ?? ""; break; }
+        var text = body.GetProperty("candidates")[0].GetProperty("content")
+            .GetProperty("parts")[0].GetProperty("text").GetString() ?? "";
 
         var json = ExtractJson(text);
         return new Rendered(

@@ -8,8 +8,9 @@ public sealed class Config
     /// <summary>GCP project + region for Vertex AI (Claude runs on Vertex — GCP-native auth, no API key).</summary>
     public required string GcpProject { get; init; }
     public string Region { get; init; } = "global";
-    /// <summary>Vertex Claude model id. Cheap default; override with COPPER_MODEL.</summary>
-    public string Model { get; init; } = "claude-haiku-4-5";
+    /// <summary>Vertex Gemini model id — Google's own model (immediate quota, GCP billing, no key).
+    /// Cheap Flash default; override with COPPER_MODEL.</summary>
+    public string Model { get; init; } = "gemini-2.5-flash";
     /// <summary>The two (or more) languages this bot bridges, ISO codes. A message is translated into
     /// whichever configured language it is NOT. Default English/Russian.</summary>
     public string[] Langs { get; init; } = ["en", "ru"];
@@ -31,7 +32,7 @@ public sealed class Config
             TelegramToken = require("TELEGRAM_BOT_TOKEN"),
             GcpProject = require("GCP_PROJECT"),
             Region = opt("COPPER_REGION") ?? "global",
-            Model = opt("COPPER_MODEL") ?? "claude-haiku-4-5",
+            Model = opt("COPPER_MODEL") ?? "gemini-2.5-flash",
             Langs = (opt("COPPER_LANGS") ?? "en,ru").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
             PublicUrl = opt("PUBLIC_URL"),
             DataDir = opt("DATA_DIR") ?? "data",
