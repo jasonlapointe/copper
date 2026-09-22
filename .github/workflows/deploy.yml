@@ -41,6 +41,7 @@ jobs:
             --image "$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/copper/$SERVICE:${{ github.sha }}" \
             --region "$REGION" \
             --allow-unauthenticated \
-            --set-env-vars "PUBLIC_URL=https://$SERVICE-${{ secrets.GCP_PROJECT_NUMBER }}.$REGION.run.app,COPPER_LANGS=en\,ru" \
-            --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest"
+            --set-env-vars "PUBLIC_URL=https://$SERVICE-${{ secrets.GCP_PROJECT_NUMBER }}.$REGION.run.app,GCP_PROJECT=${{ secrets.GCP_PROJECT }},COPPER_REGION=us-east5,COPPER_LANGS=en\,ru" \
+            --set-secrets "TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest"
+      # Claude runs on Vertex AI — the Cloud Run service account authenticates, so no API key.
       # On boot the service calls Telegram setWebhook to its own Cloud Run URL (PUBLIC_URL).

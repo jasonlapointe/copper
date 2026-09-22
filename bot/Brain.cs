@@ -1,6 +1,6 @@
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Google.Apis.Auth.OAuth2;
 
 namespace CopperBot;
 
@@ -8,11 +8,16 @@ public sealed record Rendered(string DetectedLang, string TargetLang, string Tex
 
 /// <summary>
 /// The one LLM edge: translate a message into the group's other language, contextually and with
-/// dignity. Calls the Anthropic Messages API directly over HTTPS (no CLI, no SDK) so it runs
-/// anywhere with an ANTHROPIC_API_KEY. Cheap model by default (Haiku) — set COPPER_MODEL to change.
+/// dignity. Calls Claude on GCP Vertex AI — authenticated by the service account (metadata server
+/// on Cloud Run, ADC locally), so there is NO API key to manage. Cheap model by default (Haiku).
 /// </summary>
 public sealed class Brain(Config cfg, HttpClient http)
 {
+    private readonly string _endpoint =
+        $"https://{cfg.Region}-aiplatform.googleapis.com/v1/projects/{cfg.GcpProject}" +
+        $"/locations/{cfg.Region}/publishers/anthropic/models/{cfg.Model}:rawPredict";
+    private GoogleCredential? _cred;
+
     public async Task<Rendered> TranslateAsync(string message, string sender, string peopleContext)
     {
         var langs = string.Join(", ", cfg.Langs);
@@ -34,12 +39,12 @@ public sealed class Brain(Config cfg, HttpClient http)
             {"detected":"<iso>","target":"<iso>","text":"<translation>"}
             """;
 
-        using var req = new HttpRequestMessage(HttpMethod.Post, "https://api.anthropic.com/v1/messages");
-        req.Headers.Add("x-api-key", cfg.AnthropicKey);
-        req.Headers.Add("anthropic-version", "2023-06-01");
+        var token = await AccessTokenAsync();
+        using var req = new HttpRequestMessage(HttpMethod.Post, _endpoint);
+        req.Headers.Add("Authorization", $"Bearer {token}");
         req.Content = JsonContent.Create(new
         {
-            model = cfg.Model,
+            anthropic_version = "vertex-2023-10-16", // Vertex Claude: version in body, model in the URL
             max_tokens = 1024,
             messages = new[] { new { role = "user", content = prompt } },
         });
@@ -47,9 +52,8 @@ public sealed class Brain(Config cfg, HttpClient http)
         using var resp = await http.SendAsync(req);
         var body = await resp.Content.ReadFromJsonAsync<JsonElement>();
         if (!resp.IsSuccessStatusCode)
-            throw new InvalidOperationException($"Anthropic {(int)resp.StatusCode}: {body}");
+            throw new InvalidOperationException($"Vertex {(int)resp.StatusCode}: {body}");
 
-        // content[0].text holds the model's reply.
         var text = "";
         foreach (var block in body.GetProperty("content").EnumerateArray())
             if (block.GetProperty("type").GetString() == "text") { text = block.GetProperty("text").GetString() ?? ""; break; }
@@ -59,6 +63,14 @@ public sealed class Brain(Config cfg, HttpClient http)
             json.TryGetProperty("detected", out var d) ? d.GetString() ?? "" : "",
             json.TryGetProperty("target", out var t) ? t.GetString() ?? "" : "",
             json.TryGetProperty("text", out var x) ? x.GetString() ?? "" : "");
+    }
+
+    /// <summary>Bearer token from Application Default Credentials — auto-refreshed by the library.</summary>
+    private async Task<string> AccessTokenAsync()
+    {
+        _cred ??= (await GoogleCredential.GetApplicationDefaultAsync())
+            .CreateScoped("https://www.googleapis.com/auth/cloud-platform");
+        return await _cred.UnderlyingCredential.GetAccessTokenForRequestAsync();
     }
 
     private static JsonElement ExtractJson(string s)
