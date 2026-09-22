@@ -43,3 +43,8 @@ Thumbs.db
 *.swp
 .vs/
 .idea/
+
+# copper-bot build output
+bot/bin/
+bot/obj/
+bot/data/

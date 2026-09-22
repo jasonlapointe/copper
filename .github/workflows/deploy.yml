@@ -30,10 +30,10 @@ jobs:
         with:
           project_id: ${{ secrets.GCP_PROJECT }}
 
-      # TODO(refactor): build the single C# service image (Dockerfile at repo root or copper/).
-      - name: Build & push image
+      - name: Build & push image (from bot/)
         run: |
-          gcloud builds submit --tag "$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/copper/$SERVICE:${{ github.sha }}"
+          gcloud builds submit bot \
+            --tag "$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/copper/$SERVICE:${{ github.sha }}"
 
       - name: Deploy to Cloud Run
         run: |
@@ -41,5 +41,6 @@ jobs:
             --image "$REGION-docker.pkg.dev/${{ secrets.GCP_PROJECT }}/copper/$SERVICE:${{ github.sha }}" \
             --region "$REGION" \
             --allow-unauthenticated \
+            --set-env-vars "PUBLIC_URL=https://$SERVICE-${{ secrets.GCP_PROJECT_NUMBER }}.$REGION.run.app,COPPER_LANGS=en\,ru" \
             --set-secrets "ANTHROPIC_API_KEY=ANTHROPIC_API_KEY:latest,TELEGRAM_BOT_TOKEN=TELEGRAM_BOT_TOKEN:latest"
-      # The service calls Telegram setWebhook to its own Cloud Run URL on boot.
+      # On boot the service calls Telegram setWebhook to its own Cloud Run URL (PUBLIC_URL).

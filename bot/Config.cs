@@ -1,0 +1,37 @@
+namespace CopperBot;
+
+/// <summary>All configuration comes from environment variables — the 12-factor way, so the same
+/// image runs locally and in Cloud Run with no code change and no secrets baked in.</summary>
+public sealed class Config
+{
+    public required string TelegramToken { get; init; }
+    public required string AnthropicKey { get; init; }
+    public string Model { get; init; } = "claude-haiku-4-5";
+    /// <summary>The two (or more) languages this bot bridges, ISO codes. A message is translated into
+    /// whichever configured language it is NOT. Default English/Russian.</summary>
+    public string[] Langs { get; init; } = ["en", "ru"];
+    /// <summary>Public HTTPS base URL (Cloud Run gives you one). Set → webhook mode. Unset → long-poll
+    /// (handy for local testing with no public URL).</summary>
+    public string? PublicUrl { get; init; }
+    /// <summary>Where the people network lives. Local disk by default; a mounted volume or bucket-FUSE in cloud.</summary>
+    public string DataDir { get; init; } = "data";
+    public int Port { get; init; } = 8080;
+
+    public static Config FromEnvironment()
+    {
+        string require(string k) => Environment.GetEnvironmentVariable(k)
+            ?? throw new InvalidOperationException($"Missing required env var {k}");
+        string? opt(string k) => Environment.GetEnvironmentVariable(k);
+
+        return new Config
+        {
+            TelegramToken = require("TELEGRAM_BOT_TOKEN"),
+            AnthropicKey = require("ANTHROPIC_API_KEY"),
+            Model = opt("COPPER_MODEL") ?? "claude-haiku-4-5",
+            Langs = (opt("COPPER_LANGS") ?? "en,ru").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            PublicUrl = opt("PUBLIC_URL"),
+            DataDir = opt("DATA_DIR") ?? "data",
+            Port = int.TryParse(opt("PORT"), out var p) ? p : 8080,
+        };
+    }
+}
