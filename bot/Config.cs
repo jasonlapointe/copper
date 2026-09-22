@@ -5,27 +5,31 @@ namespace CopperBot;
 public sealed class Config
 {
     public required string TelegramToken { get; init; }
-    /// <summary>GCP project + region for Vertex AI (Claude runs on Vertex — GCP-native auth, no API key).</summary>
+    /// <summary>GCP project for Vertex AI + Firestore (Gemini runs on Vertex, personas persist in Firestore).</summary>
     public required string GcpProject { get; init; }
     public string Region { get; init; } = "global";
-    /// <summary>Vertex Gemini model id — Google's own model (immediate quota, GCP billing, no key).
-    /// Cheap Flash default; override with COPPER_MODEL.</summary>
     public string Model { get; init; } = "gemini-2.5-flash";
-    /// <summary>The two (or more) languages this bot bridges, ISO codes. A message is translated into
-    /// whichever configured language it is NOT. Default English/Russian.</summary>
     public string[] Langs { get; init; } = ["en", "ru"];
-    /// <summary>Public HTTPS base URL (Cloud Run gives you one). Set → webhook mode. Unset → long-poll
-    /// (handy for local testing with no public URL).</summary>
     public string? PublicUrl { get; init; }
-    /// <summary>Where the people network lives. Local disk by default; a mounted volume or bucket-FUSE in cloud.</summary>
-    public string DataDir { get; init; } = "data";
     public int Port { get; init; } = 8080;
+
+    /// <summary>Shared secret Telegram echoes back in the webhook header — proves the request is from Telegram.</summary>
+    public string WebhookSecret { get; init; } = "";
+    /// <summary>If non-empty, only these chat ids are served (bounds cost/abuse). Empty = all chats.</summary>
+    public long[] AllowedChats { get; init; } = [];
+
+    public bool ChatAllowed(long id) => AllowedChats.Length == 0 || AllowedChats.Contains(id);
 
     public static Config FromEnvironment()
     {
         string require(string k) => Environment.GetEnvironmentVariable(k)
             ?? throw new InvalidOperationException($"Missing required env var {k}");
         string? opt(string k) => Environment.GetEnvironmentVariable(k);
+
+        var publicUrl = opt("PUBLIC_URL");
+        var webhookSecret = opt("WEBHOOK_SECRET") ?? "";
+        if (!string.IsNullOrEmpty(publicUrl) && webhookSecret.Length == 0)
+            throw new InvalidOperationException("WEBHOOK_SECRET is required in webhook mode (PUBLIC_URL set).");
 
         return new Config
         {
@@ -34,9 +38,11 @@ public sealed class Config
             Region = opt("COPPER_REGION") ?? "global",
             Model = opt("COPPER_MODEL") ?? "gemini-2.5-flash",
             Langs = (opt("COPPER_LANGS") ?? "en,ru").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
-            PublicUrl = opt("PUBLIC_URL"),
-            DataDir = opt("DATA_DIR") ?? "data",
+            PublicUrl = publicUrl,
             Port = int.TryParse(opt("PORT"), out var p) ? p : 8080,
+            WebhookSecret = webhookSecret,
+            AllowedChats = (opt("COPPER_ALLOWED_CHATS") ?? "").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(s => long.TryParse(s, out var v) ? v : 0).Where(v => v != 0).ToArray(),
         };
     }
 }

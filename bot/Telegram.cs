@@ -19,8 +19,9 @@ public sealed class Telegram(string token, HttpClient http)
         await CallAsync("sendMessage", new { chat_id = chatId, text, reply_to_message_id = replyToMessageId });
     }
 
-    /// <summary>Point Telegram at our public webhook URL (Cloud Run gives us HTTPS).</summary>
-    public async Task SetWebhookAsync(string url) => await CallAsync("setWebhook", new { url });
+    /// <summary>Point Telegram at our public webhook URL with a secret token it echoes back for auth.</summary>
+    public async Task SetWebhookAsync(string url, string secretToken)
+        => await CallAsync("setWebhook", new { url, secret_token = secretToken });
 
     public async Task DeleteWebhookAsync() => await CallAsync("deleteWebhook", new { });
 

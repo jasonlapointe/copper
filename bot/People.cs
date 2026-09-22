@@ -1,61 +1,58 @@
 using System.Collections.Concurrent;
+using System.Text;
+using Google.Cloud.Firestore;
 
 namespace CopperBot;
 
 /// <summary>
-/// The people network, cloud edition: one markdown file per person under DataDir/people, keyed by
-/// their Telegram user id. Auto-seeded on first contact (decision #40) — an unknown person who
-/// speaks gets a file with their detected language, so the bridge learns people as they arrive
-/// with zero manual setup.
+/// The people network — the product's core value — persisted in Firestore so it survives Cloud
+/// Run scale-to-zero (a local file would vanish). One document per person, keyed by Telegram user
+/// id; each carries their name, detected language, the chats they appear in, and any learned notes.
+/// Auto-seeded on first contact (decision #40). Context is scoped to the current chat's
+/// participants, so no chat's personas leak into another chat's translation prompt.
 /// </summary>
-public sealed class People(string dataDir)
+public sealed class People(string projectId)
 {
-    private readonly string _dir = Path.Combine(dataDir, "people");
-    private readonly ConcurrentDictionary<string, string> _lang = new(); // userId -> ISO lang
+    private readonly FirestoreDb _db = FirestoreDb.Create(projectId);
+    private readonly ConcurrentDictionary<string, byte> _seenThisInstance = new();
 
-    public bool Knows(string userId) => _lang.ContainsKey(userId) || File.Exists(PathFor(userId));
-
-    public string? LanguageOf(string userId)
+    /// <summary>Create/refresh a person on first contact in a chat. Preserves learned notes; never throws.</summary>
+    public async Task SeedAsync(long chatId, string userId, string name, string lang)
     {
-        if (_lang.TryGetValue(userId, out var l)) return l;
-        var path = PathFor(userId);
-        if (!File.Exists(path)) return null;
-        foreach (var line in File.ReadLines(path))
-            if (line.StartsWith("language:", StringComparison.OrdinalIgnoreCase))
-            {
-                var v = line["language:".Length..].Trim();
-                _lang[userId] = v;
-                return v;
-            }
-        return null;
+        // One durable write per (chat, user) pairing per instance lifetime — cheap and idempotent.
+        if (!_seenThisInstance.TryAdd(chatId + ":" + userId, 0)) return;
+
+        var doc = _db.Collection("people").Document(userId);
+        var snap = await doc.GetSnapshotAsync();
+        var data = new Dictionary<string, object>
+        {
+            ["name"] = name,
+            ["language"] = lang,
+            ["chats"] = FieldValue.ArrayUnion(chatId.ToString()),
+            ["lastSeen"] = FieldValue.ServerTimestamp,
+        };
+        if (!snap.Exists) data["firstSeen"] = FieldValue.ServerTimestamp;
+        await doc.SetAsync(data, SetOptions.MergeAll);
     }
 
-    /// <summary>Create a person's file on first contact with their detected language. Idempotent.</summary>
-    public void Seed(string userId, string displayName, string lang)
+    /// <summary>Personas of the people in THIS chat, as translation context. Empty-safe.</summary>
+    public async Task<string> ContextBlockAsync(long chatId)
     {
-        _lang[userId] = lang;
-        Directory.CreateDirectory(_dir);
-        var path = PathFor(userId);
-        if (File.Exists(path)) return;
-        File.WriteAllText(path,
-            $"# {displayName}\n" +
-            $"language: {lang}\n" +
-            $"telegram_id: {userId}\n" +
-            $"first_seen: {DateTime.UtcNow:yyyy-MM-dd}\n\n" +
-            $"## Grounding\n**As of {DateTime.UtcNow:yyyy-MM-dd}.** Auto-added on first contact; writes in {lang}. " +
-            $"Copper refines this as it learns more about them.\n\n## Learned\n");
-    }
+        var snap = await _db.Collection("people")
+            .WhereArrayContains("chats", chatId.ToString())
+            .GetSnapshotAsync();
+        if (snap.Count == 0) return "(no people known in this chat yet)";
 
-    /// <summary>Everything known about the people in a chat — fed to the model as translation context.</summary>
-    public string ContextBlock()
-    {
-        if (!Directory.Exists(_dir)) return "(no people known yet)";
-        var sb = new System.Text.StringBuilder();
-        foreach (var f in Directory.EnumerateFiles(_dir, "*.md"))
-            sb.AppendLine(File.ReadAllText(f).Trim()).AppendLine();
-        return sb.Length > 0 ? sb.ToString() : "(no people known yet)";
+        var sb = new StringBuilder();
+        foreach (var d in snap.Documents)
+        {
+            var name = d.TryGetValue<string>("name", out var n) ? n : "someone";
+            var lang = d.TryGetValue<string>("language", out var l) ? l : "?";
+            sb.Append("- ").Append(name).Append(" (writes ").Append(lang).Append(')');
+            if (d.TryGetValue<string>("notes", out var notes) && notes.Length > 0)
+                sb.Append(": ").Append(notes);
+            sb.AppendLine();
+        }
+        return sb.ToString();
     }
-
-    private string PathFor(string userId) => Path.Combine(_dir, Sanitize(userId) + ".md");
-    private static string Sanitize(string s) => new(s.Where(char.IsLetterOrDigit).ToArray());
 }

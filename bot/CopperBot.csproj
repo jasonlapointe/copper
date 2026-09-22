@@ -12,6 +12,8 @@
   <ItemGroup>
     <!-- Application Default Credentials for Vertex AI: metadata server on Cloud Run, ADC locally. -->
     <PackageReference Include="Google.Apis.Auth" Version="1.69.0" />
+    <!-- Durable persona storage so the people-network survives Cloud Run scale-to-zero. -->
+    <PackageReference Include="Google.Cloud.Firestore" Version="3.9.0" />
   </ItemGroup>
 
 </Project>
