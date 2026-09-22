@@ -1,0 +1,35 @@
+name: CI
+
+# Build and sanity-check on every push and every PR into master, so nothing
+# broken reaches the protected branch. This does NOT deploy — see deploy.yml
+# (added once a host is chosen).
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: [master]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Build the Copper backend
+        working-directory: copper
+        run: dotnet build --configuration Release
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Syntax-check the bridges
+        run: |
+          node -c telegram/tg.js
+          node -c wa.js
