@@ -69,13 +69,20 @@ async function serve() {
       if (!m) continue;
       const id = String(m.chat.id);
       knownChats.set(id, m.chat.title || [m.chat.first_name, m.chat.last_name].filter(Boolean).join(' ') || id);
-      if (!boundChatId) boundChatId = id; // first chat claims the bridge (MVP)
+      if (!boundChatId) boundChatId = id; // MVP: first chat claims the bridge (single-chat mode)
       if (id !== String(boundChatId)) continue;
 
-      // TODO(product): in a GROUP, tag who sent it (m.from.first_name) so the engine can
-      // translate per-recipient; in a RELAY, map senders to the two sides.
+      // Every message carries its chat + type + sender, so ONE bot serves both DMs and groups:
+      //   chatType "private"  → a 1:1 DM  (two known sides, translate X↔Y)
+      //   chatType "group"/"supergroup" → a group (translate per reader; `sender` says who spoke)
+      // The engine keys each person's language off `sender`; seed it on first message.
+      const sender = [m.from?.first_name, m.from?.last_name].filter(Boolean).join(' ') || m.from?.username || 'unknown';
       const media = m.photo ? '[photo]' : null; // TODO: download via getFile + files.download
-      const msg = { id: String(m.message_id), t: m.date, who: 'THEM', body: m.text || m.caption || `[${mediaType(m)}]`, media };
+      const msg = {
+        id: String(m.message_id), t: m.date, who: 'THEM',
+        body: m.text || m.caption || `[${mediaType(m)}]`, media,
+        chatId: id, chatType: m.chat.type, sender,
+      };
       buffer.push(msg);
       if (buffer.length > 500) buffer.shift();
       emit({ event: 'message', ...msg });

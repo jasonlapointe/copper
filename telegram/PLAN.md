@@ -12,20 +12,29 @@ lives in the C# backend. The only WhatsApp-specific piece is `wa.js`. `telegram/
 drop-in replacement that speaks the **same JSON-lines `serve` protocol**, so `WaService` can drive
 it unchanged. First milestone is literally: point the backend at this bridge and watch it work.
 
-## Product shape — decide this first
+## Product shape — one bot serves BOTH
 
-Telegram (like WhatsApp) won't let a bot silently sit inside someone's existing private chats.
-The two sanctioned shapes are both *better* products than a silent overlay:
+A single bot handles both 1:1 DMs and groups at once. Turning **Group Privacy OFF** in BotFather
+lets it read all group messages and does **not** affect DMs (those are always visible). So the
+design target is: treat **each chat (by its Telegram chat id) as its own conversation**, and route
+by the chat's type — the bot doesn't have to be "a DM bot" or "a group bot," it's both.
 
-1. **Translated group bot (recommended first).** Add the bot to a group; every member writes in
-   their own language and reads in their own. Perfect for a cross-language family/friend group,
-   and naturally viral — one person adds it, the whole group is a user. Challenge: one message has
-   *many* recipients with different languages, so translation is per-reader (see below).
-2. **1:1 relay bot.** Each person DMs the bot in their language; it relays the translated message
-   to the other. Simpler language model (two known sides), needs both to start the bot.
+- **1:1 relay (`chatType: "private"`).** Two people, two languages — translate X↔Y. Simplest to
+  ship first; good for proving the loop end to end.
+- **Translated group (`chatType: "group"`/`"supergroup"`).** One message, several readers who may
+  each speak a different language, so translation is **per reader**. The bot knows each sender from
+  the message (`sender` field); seed each person's language into the people network the first time
+  they speak. Naturally viral — one person adds the bot, the whole group is a user.
 
-Start with #1 for reach, or #2 if you want the simplest first cut. This choice drives the `TODO`s
-in `tg.js`.
+Every emitted message now carries `chatId`, `chatType`, and `sender` so the engine can route both.
+The MVP skeleton still *binds a single chat* (first chat to message it) to keep the first wiring
+trivial; the evolution below removes that.
+
+### Evolution from single-chat MVP → multi-chat
+1. Drop `boundChatId`; keep a conversation per `chatId` (its own recent buffer + people context).
+2. Make `send`/`sendMedia` take a target `chatId` (which chat to reply into) instead of the single
+   bound chat. (This extends the serve protocol; update `WaService` to pass the chat id.)
+3. For groups, fan a message out to each reader's language; for DMs, it's a straight X↔Y.
 
 ## Steps
 
