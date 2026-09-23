@@ -9,7 +9,9 @@ public sealed class Config
     public required string GcpProject { get; init; }
     public string Region { get; init; } = "global";
     public string Model { get; init; } = "gemini-2.5-flash";
-    public string[] Langs { get; init; } = ["en", "ru"];
+    /// <summary>The group language a chat uses until someone changes it with /language. Any language
+    /// name the model understands ("English", "Russian", "Kazakh", ...). Per-chat overrides live in Firestore.</summary>
+    public string DefaultLanguage { get; init; } = "English";
     public string? PublicUrl { get; init; }
     public int Port { get; init; } = 8080;
 
@@ -37,7 +39,7 @@ public sealed class Config
             GcpProject = require("GCP_PROJECT"),
             Region = opt("COPPER_REGION") ?? "global",
             Model = opt("COPPER_MODEL") ?? "gemini-2.5-flash",
-            Langs = (opt("COPPER_LANGS") ?? "en,ru").Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+            DefaultLanguage = opt("COPPER_DEFAULT_LANG") ?? "English",
             PublicUrl = publicUrl,
             Port = int.TryParse(opt("PORT"), out var p) ? p : 8080,
             WebhookSecret = webhookSecret,

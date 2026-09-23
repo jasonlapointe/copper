@@ -5,6 +5,7 @@ var cfg = Config.FromEnvironment();
 var http = new HttpClient { Timeout = TimeSpan.FromMinutes(2) };
 var tg = new Telegram(cfg.TelegramToken, http);
 var people = new People(cfg.GcpProject);
+var groups = new Groups(cfg.GcpProject);
 var brain = new Brain(cfg, http);
 
 // Core: translate one incoming message and reply in-thread. Never throws — logs and moves on.
@@ -15,14 +16,11 @@ async Task HandleUpdate(JsonElement update)
         if (update.ValueKind != JsonValueKind.Object) return;
         if (!update.TryGetProperty("message", out var m) || m.ValueKind != JsonValueKind.Object) return;
         if (!m.TryGetProperty("text", out var textEl) || textEl.ValueKind != JsonValueKind.String) return; // text only (MVP)
-        var text = textEl.GetString() ?? "";
-        if (text.Length == 0 || text.StartsWith('/')) return;             // skip commands like /start
+        var text = textEl.GetString()?.Trim() ?? "";
+        if (text.Length == 0) return;
 
         if (!m.TryGetProperty("chat", out var chat) || !chat.TryGetProperty("id", out var chatIdEl)) return;
         var chatId = chatIdEl.GetInt64();
-        // Operational log (no message content): lets us discover chat ids to put on the allowlist.
-        var chatType = chat.TryGetProperty("type", out var ct) ? ct.GetString() : "?";
-        Console.WriteLine($"incoming: chat={chatId} type={chatType} allowed={cfg.ChatAllowed(chatId)}");
         if (!cfg.ChatAllowed(chatId)) return;                             // allowlist bounds cost/abuse
 
         if (!m.TryGetProperty("from", out var from) || from.ValueKind != JsonValueKind.Object) return;
@@ -34,15 +32,44 @@ async Task HandleUpdate(JsonElement update)
         if (name.Length == 0) name = "unknown";
         var replyTo = m.TryGetProperty("message_id", out var mid) ? mid.GetInt32() : (int?)null;
 
-        // Context scoped to THIS chat's participants only (privacy + bounded cost).
-        var r = await brain.TranslateAsync(text, name, await people.ContextBlockAsync(chatId));
+        // ── Commands (not translated) ──
+        if (text.StartsWith('/'))
+        {
+            var space = text.IndexOf(' ');
+            var cmd = (space < 0 ? text : text[..space]).Split('@')[0].ToLowerInvariant(); // strip @botname
+            var arg = space < 0 ? "" : text[(space + 1)..].Trim();
 
-        // Auto-seed the sender on first contact in this chat (decision #40).
+            if (cmd is "/language" or "/lang" or "/setlang")
+            {
+                if (arg.Length == 0)
+                {
+                    var cur = await groups.GetLanguageAsync(chatId, cfg.DefaultLanguage);
+                    await tg.SendMessageAsync(chatId, $"This chat is translated into {cur}. Change it with:  /language <language>   (e.g. /language Russian)", replyTo);
+                }
+                else
+                {
+                    await groups.SetLanguageAsync(chatId, arg);
+                    await tg.SendMessageAsync(chatId, $"✓ Group language set to {arg}. Messages will now be translated into {arg}.", replyTo);
+                }
+            }
+            else if (cmd is "/start" or "/help")
+            {
+                var cur = await groups.GetLanguageAsync(chatId, cfg.DefaultLanguage);
+                await tg.SendMessageAsync(chatId, $"I translate every message in this chat into its group language ({cur}), so everyone can follow along in one language. Change it with /language <language>.", replyTo);
+            }
+            return; // other commands: ignore
+        }
+
+        // ── Normal message → render into the chat's group language ──
+        var target = await groups.GetLanguageAsync(chatId, cfg.DefaultLanguage);
+        var r = await brain.TranslateAsync(text, name, await people.ContextBlockAsync(chatId), target);
+
+        // Auto-seed the sender's detected language on first contact in this chat (decision #40).
         if (r.DetectedLang.Length > 0)
             await people.SeedAsync(chatId, userId, name, r.DetectedLang);
 
-        // Post only if the language actually changed (don't echo same-language text).
-        if (r.Text.Length > 0 && !r.Text.Equals(text, StringComparison.OrdinalIgnoreCase))
+        // Post only when the message wasn't already in the group language (no echo).
+        if (!r.AlreadyInTarget && r.Text.Length > 0)
             await tg.SendMessageAsync(chatId, r.Text, replyTo);
     }
     catch (Exception ex)
@@ -86,7 +113,7 @@ if (cfg.PublicUrl is { Length: > 0 } url)
         {
             var me = await tg.GetMeUsernameAsync();
             await tg.SetWebhookAsync($"{url.TrimEnd('/')}/telegram/webhook", cfg.WebhookSecret);
-            Console.WriteLine($"copper-bot @{me} · webhook set · model {cfg.Model} · langs {string.Join("/", cfg.Langs)}");
+            Console.WriteLine($"copper-bot @{me} · webhook set · model {cfg.Model} · default lang {cfg.DefaultLanguage}");
         }
         catch (Exception ex) { Console.Error.WriteLine($"startup webhook error: {ex.GetType().Name}"); }
     });
@@ -97,7 +124,7 @@ else
     // ── Local mode: long-poll. No public URL needed — for testing before deploying. ──
     var me = await tg.GetMeUsernameAsync();
     await tg.DeleteWebhookAsync();
-    Console.WriteLine($"copper-bot @{me} · long-poll (local) · model {cfg.Model} · langs {string.Join("/", cfg.Langs)}");
+    Console.WriteLine($"copper-bot @{me} · long-poll (local) · model {cfg.Model} · default lang {cfg.DefaultLanguage}");
     long offset = 0;
     while (true)
     {
