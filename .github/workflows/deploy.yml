@@ -5,6 +5,10 @@ name: Deploy (Cloud Run)
 on:
   push:
     branches: [master]
+    # Only redeploy when the product or the pipeline itself changes — not on doc/README edits.
+    paths:
+      - "bot/**"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 env:
