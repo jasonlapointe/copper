@@ -20,6 +20,9 @@ async Task HandleUpdate(JsonElement update)
 
         if (!m.TryGetProperty("chat", out var chat) || !chat.TryGetProperty("id", out var chatIdEl)) return;
         var chatId = chatIdEl.GetInt64();
+        // Operational log (no message content): lets us discover chat ids to put on the allowlist.
+        var chatType = chat.TryGetProperty("type", out var ct) ? ct.GetString() : "?";
+        Console.WriteLine($"incoming: chat={chatId} type={chatType} allowed={cfg.ChatAllowed(chatId)}");
         if (!cfg.ChatAllowed(chatId)) return;                             // allowlist bounds cost/abuse
 
         if (!m.TryGetProperty("from", out var from) || from.ValueKind != JsonValueKind.Object) return;
